@@ -1,0 +1,33 @@
+# Snowball Effect Script
+# Features: Freeze damage and ice block creation
+
+options:
+    prefix: &b[&fSnow&b]&r
+    damage: 10 # Amount of damage dealt
+
+on projectile hit:
+    if projectile is snowball:
+        if victim is set:
+            # Hit entity
+            damage victim by {@damage} with cause freeze
+            
+            # Effects
+            play sound "block.glass.break" with volume 0.5 at victim's location
+            make 5 "SNOWFLAKE" particle at victim's location
+            
+            # Message
+            message "{@prefix} &bYou hit %victim%&b with freeze damage!" to shooter
+            
+        else if event-block is set:
+            # Check if block can be turned to ice
+            if event-block is not air:
+                if event-block is not bedrock:
+                    # Turn block to ice
+                    set event-block to ice
+                    
+                    # Effects
+                    play sound "block.glass.place" with volume 0.5 at event-block's location
+                    make 3 "SNOWFLAKE" particle at event-block's location
+                    
+                    # Message
+                    message "{@prefix} &bYou turned a block into ice!" to shooter
