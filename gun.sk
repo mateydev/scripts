@@ -1,0 +1,95 @@
+# Custom Gun System
+# Requires: Skript, SkBee
+
+options:
+    prefix: &8[&cGun&8]&r
+    cooldown: 2 # Seconds between shots
+    damage: 5 # Base damage per shot
+    range: 50 # Maximum range in blocks
+
+# Variables
+variables:
+    {gun::ammo::%player%} = 30
+    {gun::reloading::%player%} = false
+    {gun::cooldown::%player%} = 0
+
+command /gun [<text>]:
+    permission: gun.use
+    permission message: &cYou don't have permission to use guns!
+    trigger:
+        if arg 1 is not set:
+            send "{@prefix} &7Commands:"
+            send "&c/gun give &7- Get a gun"
+            send "&c/gun ammo &7- Check your ammo"
+            send "&c/gun reload &7- Reload your gun"
+        else if arg 1 is "give":
+            give player 1 iron_horse_armor named "&cGun" with lore "&7Right-click to shoot" and "&7Ammo: 30/30"
+            set {gun::ammo::%player%} to 30
+            send "{@prefix} &aYou received a gun!"
+        else if arg 1 is "ammo":
+            send "{@prefix} &7Ammo: &c%{gun::ammo::%player%}%&7/30"
+        else if arg 1 is "reload":
+            reload_gun(player)
+
+function reload_gun(p: player):
+    if {gun::reloading::%{_p}%} is true:
+        send "{@prefix} &cAlready reloading!" to {_p}
+        stop
+    if {gun::ammo::%{_p}%} >= 30:
+        send "{@prefix} &cMagazine is full!" to {_p}
+        stop
+    set {gun::reloading::%{_p}%} to true
+    send "{@prefix} &7Reloading..." to {_p}
+    wait 3 seconds
+    set {gun::ammo::%{_p}%} to 30
+    set {gun::reloading::%{_p}%} to false
+    send "{@prefix} &aReload complete!" to {_p}
+    play sound "block.dispenser.dispense" with volume 1 at {_p}'s location
+
+on right click:
+    if player's tool is iron_horse_armor:
+        if name of player's tool contains "Gun":
+            if {gun::cooldown::%player%} > now:
+                stop
+            if {gun::reloading::%player%} is true:
+                send "{@prefix} &cCannot shoot while reloading!"
+                stop
+            if {gun::ammo::%player%} <= 0:
+                send "{@prefix} &cOut of ammo! Use &7/gun reload"
+                play sound "block.dispenser.fail" with volume 1 at player's location
+                stop
+            
+            # Shooting mechanics
+            remove 1 from {gun::ammo::%player%}
+            set {gun::cooldown::%player%} to {@cooldown} seconds from now
+            
+            # Effects
+            play sound "entity.generic.explode" with volume 0.5 at player's location
+            shoot a snowball from player with velocity 5
+            
+            # Particle trail
+            set {_proj} to last shot projectile
+            while {_proj} exists:
+                draw 1 of smoke at {_proj}'s location
+                wait 1 tick
+            
+            # Hit detection
+            set {_loc} to location of {_proj}
+            loop all entities in radius {@range} around {_loc}:
+                if loop-entity is not player:
+                    if loop-entity is living entity:
+                        damage loop-entity by {@damage}
+                        play sound "entity.player.hurt" at loop-entity's location
+                        spawn 5 of particle "crit" at loop-entity's location
+
+on projectile hit:
+    if projectile is snowball:
+        if shooter is a player:
+            delete projectile
+            play sound "block.stone.break" at projectile's location
+            spawn 3 of particle "smoke" at projectile's location
+
+on quit:
+    delete {gun::ammo::%player%}
+    delete {gun::reloading::%player%}
+    delete {gun::cooldown::%player%}
