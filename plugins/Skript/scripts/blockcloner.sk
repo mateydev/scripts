@@ -1,0 +1,70 @@
+# Block Cloner Script with Enhanced Features
+
+options:
+    prefix: &8[&bBlockCloner&8]&r
+    cooldown: 3 # Cooldown in seconds
+    max-blocks: 64 # Maximum blocks that can be cloned at once
+
+# Variables to store cooldowns
+variables:
+    {blockcloner::cooldown::%player%} = 0
+
+command /blockcloner [<text>]:
+    aliases: bcloner, bc
+    permission: blockcloner.use
+    permission message: &cYou don't have permission to use this command!
+    trigger:
+        if arg 1 is not set:
+            send "{@prefix} &7Commands:"
+            send "&b/blockcloner help &7- Shows this help message"
+            send "&b/blockcloner cooldown &7- Shows your cooldown"
+        else if arg 1 is "help":
+            send "{@prefix} &7Plugin Help:"
+            send "&7Right-click a block with an ender pearl to clone it"
+            send "&7You can clone up to &b{@max-blocks} &7blocks at once"
+            send "&7There is a &b{@cooldown} &7second cooldown"
+        else if arg 1 is "cooldown":
+            set {_remaining} to difference between {blockcloner::cooldown::%player%} and now
+            if {_remaining} > 0 seconds:
+                send "{@prefix} &7You must wait &b%{_remaining}% &7before cloning again"
+            else:
+                send "{@prefix} &7You can clone blocks now!"
+
+on right click on a block:
+    if player's tool is ender pearl:
+        # Check permission
+        if player doesn't have permission "blockcloner.use":
+            send "{@prefix} &cYou don't have permission to use this!"
+            stop
+        
+        # Check cooldown
+        set {_cooldown} to difference between {blockcloner::cooldown::%player%} and now
+        if {_cooldown} > 0 seconds:
+            send "{@prefix} &cPlease wait %{_cooldown}% before cloning again!"
+            stop
+
+        # Get block data
+        set {_block} to event-block
+        
+        # Check if block is not air or bedrock
+        if {_block} is air or bedrock:
+            send "{@prefix} &cYou cannot clone this block!"
+            stop
+        
+        # Remove ender pearl and give block
+        remove 1 ender pearl from player's inventory
+        give player 1 of {_block}
+        
+        # Set cooldown
+        set {blockcloner::cooldown::%player%} to now
+        add {@cooldown} seconds to {blockcloner::cooldown::%player%}
+        
+        # Effects
+        play sound "entity.enderman.teleport" with volume 0.5 at player's location
+        spawn 2 of particle "portal" at event-block
+        
+        # Success message
+        send "{@prefix} &aSuccessfully cloned &b%{_block}%&a!"
+
+on join:
+    delete {blockcloner::cooldown::%player%}
